@@ -1,4 +1,12 @@
+`timescale 1ns/1ps
 module tb_memory_top;
+
+	`ifdef USE_POWER_PINS
+        wire VPWR;
+        wire VGND;
+        assign VPWR = 1'b1;
+        assign VGND = 1'b0;
+    `endif
 
 	logic clk;
 	logic rst;					// Reset all values to 0.
@@ -29,38 +37,111 @@ module tb_memory_top;
 	memory_top UUT(.*);
 
 	localparam CLK_PERIOD = 10;
-
 	always begin
-			#(CLK_PERIOD/2)
-			clk <= ~clk;
+		#(CLK_PERIOD/2)
+		clk <= ~clk;
 	end 
 
 	initial begin
-    // Name as needed
 		$dumpfile("tb_memory_top.vcd");
 		$dumpvars(0);
 	end
+	initial #100000 $error("Timeout");
 
+
+	// Task for writing to both RAMs, inputs for Address and Data
+	task automatic write_both (
+		input [7:0] addrA, input [31:0] dataA,
+		input [7:0] addrB, input [31:0] dataB
+	);
+	begin
+		@(posedge clk);
+		A_ADDR_O = addrA;
+		A_DATA_O  = dataA;
+		A_WE_O   = 1;
+		A_STB_O  = 1;
+
+		B_ADDR_O = addrB;
+		B_DATA_O  = dataB;
+		B_WE_O   = 1;
+		B_STB_O  = 1;
+	
+	 	@(posedge clk);
+		A_STB_O  = 0;
+		A_WE_O   = 0;
+
+		B_STB_O  = 0;
+		B_WE_O   = 0;
+	end
+	endtask
+
+	// Task for writing to both RAMs
+	task automatic read_both (
+		input [7:0] addrA, input [31:0] expOutA,
+		input [7:0] addrB, input [31:0] expOutB
+	);
+	begin
+		@(posedge clk);
+		A_ADDR_O = addrA;
+		A_WE_O = 0;
+		A_STB_O = 1;
+
+		B_ADDR_O = addrB;
+		B_WE_O = 0;
+		B_STB_O = 1;
+
+		@(posedge clk);
+		A_STB_O = 0;
+		A_STB_O = 0;
+
+		@(negedge clk);
+		if ((A_DATA_I != expOutA)) begin
+			$error("ERROR @ PORT A: Expected %h at address %h, got %h", expOutA, addrA, A_DATA_I);
+		end
+		//assert(A_DATA_I === expOutA);
+
+		if ((B_DATA_I != expOutB)) begin
+			$error("ERROR @ PORT B: Expected %h at address %h, got %h", expOutB, addrB, B_DATA_I);
+		end
+		//assert(B_DATA_I === expOutB);
+
+	end 
+	endtask
+
+	task automatic read_single (
+		input [7:0] addr, input [31:0] expOut, input ramSel	// 0 = RAM1
+	);
+	endtask
+
+
+
+	// Tests
 	initial begin
-
 		clk = 0;
 		rst = 0;
 
-		A_WE_O = 1;
-		A_ADDR_O = 8'h80;
-		A_DATA_O = 32'hFFFF0000;
-		A_STB_O = 1;
-		B_ADDR_O = 8'h70;
-		B_DATA_O = 32'hDEADBEEF;
-		B_STB_O = 1;
-		#50
+		@(posedge clk)
+		A_CYC_O = 1;
+		B_CYC_O = 1;
 
-		A_ADDR_O = 8'h85;
-		B_ADDR_O = 8'h89;
-		A_DATA_O = 32'h12341234;
-		B_DATA_O = 32'h98989898;
-		#50
+		A_STB_O = 0;
+		B_STB_O = 0;
 
+		A_ADDR_O = 0;
+		B_ADDR_O = 0;
+
+		A_WE_O = 0;
+		B_WE_O = 0;
+
+		A_DATA_O = 0;
+		B_DATA_O = 0;
+
+		@(posedge clk);
+		write_both(8'hF1, 32'hABABABAB, 8'h05, 32'hF0F0F0F0);
+		write_both(8'hF4, 32'h12345678, 8'h35, 32'h77777777);
+
+		@(posedge clk);
+		read_both(8'h00, 32'h00000000, 8'hF1, 32'hABABABAB);
 
 		$finish();
 
