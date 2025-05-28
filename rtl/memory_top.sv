@@ -30,7 +30,7 @@ module memory_top (
 
 );
 
-	logic STALLCTRL; 				 	// 1 = A goes next, 0 = B goes next
+	logic STALLCTRL = 0; 				 	// 1 = A goes next, 0 = B goes next
 	// output "state" for which ram A and B are getting data from updates every clock cycle
 	// output data is fed out combinationally.
 	

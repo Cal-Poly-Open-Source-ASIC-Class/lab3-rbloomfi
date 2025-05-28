@@ -48,6 +48,8 @@ module tb_memory_top;
 	end
 	initial #100000 $error("Timeout");
 
+// ############################### BOTH RAMS ###############################
+
 
 	// Task for writing to both RAMs, inputs for Address and Data
 	task automatic write_both (
@@ -108,12 +110,130 @@ module tb_memory_top;
 	end 
 	endtask
 
-	task automatic read_single (
-		input [7:0] addr, input [31:0] expOut, input ramSel	// 0 = RAM1
+
+
+// ############################### RAM A ###############################
+
+
+
+	task automatic read_A (
+		input [7:0] addrA, input [31:0] expOutA
 	);
+	begin
+		@(posedge clk);
+		A_ADDR_O <= addrA;
+		A_WE_O <= 0;
+		A_STB_O <= 1;
+
+		// B_ADDR_O <= addrB;
+		// B_WE_O <= 0;
+		// B_STB_O <= 1;
+
+		@(posedge clk);
+		A_STB_O <= 0;
+		// A_STB_O <= 0;
+
+		@(negedge clk);
+		if ((A_DATA_I != expOutA)) begin
+			$error("ERROR @ PORT A: Expected %h at address %h, got %h", expOutA, addrA, A_DATA_I);
+		end
+		//assert(A_DATA_I === expOutA);
+
+		// if ((B_DATA_I != expOutB)) begin
+		// 	$error("ERROR @ PORT B: Expected %h at address %h, got %h", expOutB, addrB, B_DATA_I);
+		// end
+		//assert(B_DATA_I === expOutB);
+
+	end 
+	endtask
+
+	task automatic write_A (
+		input [7:0] addrA, input [31:0] dataA
+	);
+	begin
+		@(posedge clk);
+		A_ADDR_O <= addrA;
+		A_DATA_O  <= dataA;
+		A_WE_O   <= 1;
+		A_STB_O  <= 1;
+
+		// B_ADDR_O <= addrB;
+		// B_DATA_O  <= dataB;
+		// B_WE_O   <= 1;
+		// B_STB_O  <= 1;
+	
+	 	@(posedge clk);
+		A_STB_O  <= 0;
+		A_WE_O   <= 0;
+
+		// B_STB_O  <= 0;
+		// B_WE_O   <= 0;
+	end
 	endtask
 
 
+// ############################### RAM B ###############################
+
+
+
+	task automatic read_B (
+		input [7:0] addrB, input [31:0] expOutB
+	);
+	begin
+		@(posedge clk);
+		// A_ADDR_O <= addrA;
+		// A_WE_O <= 0;
+		// A_STB_O <= 1;
+
+		B_ADDR_O <= addrB;
+		B_WE_O <= 0;
+		B_STB_O <= 1;
+
+		@(posedge clk);
+		// A_STB_O <= 0;
+		B_STB_O <= 0;
+
+		@(negedge clk);
+		// if ((A_DATA_I != expOutA)) begin
+		// 	$error("ERROR @ PORT A: Expected %h at address %h, got %h", expOutA, addrA, A_DATA_I);
+		// end
+		//assert(A_DATA_I === expOutA);
+
+		if ((B_DATA_I != expOutB)) begin
+			$error("ERROR @ PORT B: Expected %h at address %h, got %h", expOutB, addrB, B_DATA_I);
+		end
+		//assert(B_DATA_I === expOutB);
+
+	end 
+	endtask
+
+	task automatic write_B (
+		input [7:0] addrB, input [31:0] dataB
+	);
+	begin
+		@(posedge clk);
+		// A_ADDR_O <= addrA;
+		// A_DATA_O  <= dataA;
+		// A_WE_O   <= 1;
+		// A_STB_O  <= 1;
+
+		B_ADDR_O <= addrB;
+		B_DATA_O  <= dataB;
+		B_WE_O   <= 1;
+		B_STB_O  <= 1;
+	
+	 	@(posedge clk);
+		// A_STB_O  <= 0;
+		// A_WE_O   <= 0;
+
+		B_STB_O  <= 0;
+		B_WE_O   <= 0;
+	end
+	endtask
+
+
+
+// ############################### TESTS ###############################
 
 	// Tests
 	always begin
@@ -123,6 +243,9 @@ module tb_memory_top;
 		@(posedge clk)
 		A_CYC_O <= 1;
 		B_CYC_O <= 1;
+
+		A_SEL_O <= 4'b1111;
+		B_SEL_O <= 4'b1111;
 
 		A_STB_O <= 0;
 		B_STB_O <= 0;
@@ -137,27 +260,53 @@ module tb_memory_top;
 		B_DATA_O <= 0;
 
 		@(posedge clk);
-		write_both(8'hF1, 32'hABABABAB, 8'h05, 32'hF0F0F0F0);			// write to different RAMs
-		write_both(8'hF4, 32'h12345678, 8'h35, 32'h77777777);			// write to different RAMs
+		write_A(8'h00, 32'hFFFFAAAA);
+		write_A(8'hF2, 32'hBBBB7777);
 
 		@(posedge clk);
-		read_both(8'h00, 32'h00000000, 8'hF1, 32'hABABABAB);			// read previously written RAM
+		read_A(8'h00, 32'hFFFFAAAA);
+		read_A(8'h34, 32'h00000000);
+		read_A(8'hF2, 32'hBBBB7777);
 
 		@(posedge clk);
-		//write_both(8'hF1, 32'hCCCCCCCC, 8'hF2, 32'hAAAAAAAA);			// write to the same RAM
-		//write_both(8'h01, 32'h11112222, 8'h02, 32'h99998888);			// write to the same RAM
+		write_B(8'h55, 32'h11111111);
+		write_B(8'hAA, 32'h00005555);
+
+		@(posedge clk);
+		read_B(8'h55, 32'h11111111);
+		read_B(8'h77, 32'h00000000);
+		read_B(8'hAA, 32'h00005555);
+
+		#20
+		$finish();
+
+		// @(posedge clk);
+		// write_both(8'hF1, 32'hABABABAB, 8'h05, 32'hF0F0F0F0);			// write to different RAMs
+		// write_both(8'hF4, 32'h12345678, 8'h35, 32'h77777777);			// write to different RAMs
+
+		// @(posedge clk);
+		// read_both(8'h00, 32'h00000000, 8'hF1, 32'hABABABAB);			// read previously written RAM
+
+		// @(posedge clk);
+		// write_both(8'h01, 32'h11112222, 8'h02, 32'h99998888);			// write to the same RAM
+
+		// @(posedge clk);
+		// read_both(8'hF4, 32'h12345678, 8'h05, 32'hF0F0F0F0);			// read previously written RAM
+
+
+		
 
 
 		/*
-			1. why does my testbench of data-out being correct, but not being read by the testbench? Not directed to correct output port?
-			2. how to deal with stalling data for the next cycle
-			3. anything else
+			1. how to deal with stalling data for the next cycle
+			2. anything else
 		*/
 
+		//write_both(8'hF1, 32'hCCCCCCCC, 8'hF2, 32'hAAAAAAAA);			// write to the same RAM
+		//read_both(8'h01, 32'h11112222, 8'hF4, 32'h12345678);			// read previously written RAM
 
 
-
-		$finish();
+		//$finish();
 
 	end 
 
