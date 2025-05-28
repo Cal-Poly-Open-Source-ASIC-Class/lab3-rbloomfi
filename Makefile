@@ -125,6 +125,10 @@ openlane:
 	@`which openlane` --flow Classic $(OPENLANE_CONF)
 	@cd runs && rm -f recent && ln -sf `ls | tail -n 1` recent
 
+openlane-no-drc:
+	@`which openlane` --flow Classic $(OPENLANE_CONF) --skip magic.drc --skip klayout.drc
+	@cd runs && rm -f recent && ln -sf `ls | tail -n 1` recent
+
 %.json %.yaml: FORCE
 	@echo $@
 	OPENLANE_CONF=$@ make openlane

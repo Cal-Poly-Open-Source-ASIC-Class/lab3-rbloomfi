@@ -56,22 +56,22 @@ module tb_memory_top;
 	);
 	begin
 		@(posedge clk);
-		A_ADDR_O = addrA;
-		A_DATA_O  = dataA;
-		A_WE_O   = 1;
-		A_STB_O  = 1;
+		A_ADDR_O <= addrA;
+		A_DATA_O  <= dataA;
+		A_WE_O   <= 1;
+		A_STB_O  <= 1;
 
-		B_ADDR_O = addrB;
-		B_DATA_O  = dataB;
-		B_WE_O   = 1;
-		B_STB_O  = 1;
+		B_ADDR_O <= addrB;
+		B_DATA_O  <= dataB;
+		B_WE_O   <= 1;
+		B_STB_O  <= 1;
 	
 	 	@(posedge clk);
-		A_STB_O  = 0;
-		A_WE_O   = 0;
+		A_STB_O  <= 0;
+		A_WE_O   <= 0;
 
-		B_STB_O  = 0;
-		B_WE_O   = 0;
+		B_STB_O  <= 0;
+		B_WE_O   <= 0;
 	end
 	endtask
 
@@ -82,17 +82,17 @@ module tb_memory_top;
 	);
 	begin
 		@(posedge clk);
-		A_ADDR_O = addrA;
-		A_WE_O = 0;
-		A_STB_O = 1;
+		A_ADDR_O <= addrA;
+		A_WE_O <= 0;
+		A_STB_O <= 1;
 
-		B_ADDR_O = addrB;
-		B_WE_O = 0;
-		B_STB_O = 1;
+		B_ADDR_O <= addrB;
+		B_WE_O <= 0;
+		B_STB_O <= 1;
 
 		@(posedge clk);
-		A_STB_O = 0;
-		A_STB_O = 0;
+		A_STB_O <= 0;
+		A_STB_O <= 0;
 
 		@(negedge clk);
 		if ((A_DATA_I != expOutA)) begin
@@ -116,32 +116,46 @@ module tb_memory_top;
 
 
 	// Tests
-	initial begin
+	always begin
 		clk = 0;
 		rst = 0;
 
 		@(posedge clk)
-		A_CYC_O = 1;
-		B_CYC_O = 1;
+		A_CYC_O <= 1;
+		B_CYC_O <= 1;
 
-		A_STB_O = 0;
-		B_STB_O = 0;
+		A_STB_O <= 0;
+		B_STB_O <= 0;
 
-		A_ADDR_O = 0;
-		B_ADDR_O = 0;
+		A_ADDR_O <= 0;
+		B_ADDR_O <= 0;
 
-		A_WE_O = 0;
-		B_WE_O = 0;
+		A_WE_O <= 0;
+		B_WE_O <= 0;
 
-		A_DATA_O = 0;
-		B_DATA_O = 0;
-
-		@(posedge clk);
-		write_both(8'hF1, 32'hABABABAB, 8'h05, 32'hF0F0F0F0);
-		write_both(8'hF4, 32'h12345678, 8'h35, 32'h77777777);
+		A_DATA_O <= 0;
+		B_DATA_O <= 0;
 
 		@(posedge clk);
-		read_both(8'h00, 32'h00000000, 8'hF1, 32'hABABABAB);
+		write_both(8'hF1, 32'hABABABAB, 8'h05, 32'hF0F0F0F0);			// write to different RAMs
+		write_both(8'hF4, 32'h12345678, 8'h35, 32'h77777777);			// write to different RAMs
+
+		@(posedge clk);
+		read_both(8'h00, 32'h00000000, 8'hF1, 32'hABABABAB);			// read previously written RAM
+
+		@(posedge clk);
+		//write_both(8'hF1, 32'hCCCCCCCC, 8'hF2, 32'hAAAAAAAA);			// write to the same RAM
+		//write_both(8'h01, 32'h11112222, 8'h02, 32'h99998888);			// write to the same RAM
+
+
+		/*
+			1. why does my testbench of data-out being correct, but not being read by the testbench? Not directed to correct output port?
+			2. how to deal with stalling data for the next cycle
+			3. anything else
+		*/
+
+
+
 
 		$finish();
 

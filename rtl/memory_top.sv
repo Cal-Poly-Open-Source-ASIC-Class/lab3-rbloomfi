@@ -2,7 +2,7 @@
 
 module memory_top (
 	input logic clk,
-	input logic rst,					// Reset all values to 0.
+	input logic rst,						// Reset all values to 0.
 
 	input logic 		A_CYC_O,			// TRUE anytime a wishbone transaction is taking place, needs ot be true on the first STB clock cycle, stays true through ACK received.
 	input logic 		A_STB_O,			// TRUE for any bus transaction request, while TRUE: other wishbone inputs are valid and reference the same transaction. Transaction accepted by slave any time STB is TRUE and STALL is FALSE.
@@ -49,6 +49,12 @@ module memory_top (
 	logic 			A_SEL;
 	logic 			B_SEL;
 
+	logic			A_PREV;
+	logic 			B_PREV;
+
+	logic 			A_CUR;
+	logic 			B_CUR;
+
 
 	DFFRAM256x32 DFFRAM1 (
 		.CLK(clk),
@@ -69,6 +75,12 @@ module memory_top (
 	);
 
 	always @(posedge clk) begin
+		A_ACK_I <= 0;
+		B_ACK_I <= 0;
+
+		A_CUR <= A_SEL;
+		B_CUR <= B_SEL;
+
 		if (B_STALL_I || A_STALL_I) begin
 			STALLCTRL <= ~STALLCTRL;
 		end 
@@ -76,8 +88,14 @@ module memory_top (
 		if (A_STB_O && ~A_STALL_I) begin
 			A_ACK_I <= 1;
 		end 
+
+		if (B_STB_O && ~B_STALL_I) begin
+			B_ACK_I <= 1;
+		end 
 	end 
 
+	assign A_SEL = A_ADDR_O[7];
+	assign B_SEL = B_ADDR_O[7];
 
 	always_comb begin
 		RAM_1_EN0 = 0;
@@ -100,8 +118,21 @@ module memory_top (
 		// A_ACK_I = 0;
 		// B_ACK_I = 0;
 
-		A_SEL = A_ADDR_O[7];
-		B_SEL = B_ADDR_O[7];
+		if ((A_SEL == B_SEL) && (A_STB_O == 1) && (B_STB_O == 1)) begin
+
+			if (STALLCTRL == 0) begin
+				A_STALL_I = 1;
+				B_STALL_I = 0;
+			end 
+			else begin
+				A_STALL_I = 1;
+				B_STALL_I = 0;
+			end 
+
+
+		end 
+
+
 
 		// A gets what it wants
 		if (  ((A_STB_O == 1 && B_STB_O == 1) && (A_SEL != B_SEL)) 			// both active with no collision
@@ -155,6 +186,27 @@ module memory_top (
 			end
 
 		end 
+
+		if (A_CUR == 0) begin
+			A_DATA_I = RAM_1_Do0;
+		end 
+
+		else if (A_CUR == 1) begin
+			A_DATA_I = RAM_2_Do0;
+		end 
+
+		else A_DATA_I = 0;
+
+		if (B_CUR == 0) begin
+			B_DATA_I = RAM_1_Do0;
+		end 
+
+		else if (B_CUR == 1) begin
+			B_DATA_I = RAM_2_Do0;
+		end 
+
+		else B_DATA_I = 0;
+
 
 
 
